@@ -1,5 +1,5 @@
 {-# LANGUAGE StandaloneDeriving, FlexibleInstances #-}
-module Pseudoterminal where
+module Pseudoterminal w3here
 
 import System.Posix.Pty
 import System.Process
