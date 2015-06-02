@@ -73,6 +73,8 @@ library
                , posix-pty
                , process
                , bytestring
+               , random
+               , reactive-banana
   exposed-modules: Termonoid
   default-language: Haskell2010
   ghc-options: -Wall -fno-warn-orphans
