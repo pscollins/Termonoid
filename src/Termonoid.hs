@@ -25,10 +25,13 @@ main = do
     return True
 
   win `on` keyPressEvent $ do
-    k <- eventKeyName
+    k <- eventKeyVal
     liftIO $ print k
+    return True
+
+  win `on` destroyEvent $ do
+    liftIO mainQuit
     return True
 
 
   mainGUI
-  mainQuit
