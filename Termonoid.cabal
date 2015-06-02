@@ -67,7 +67,7 @@ executable Termonoid
 
 library
   hs-source-dirs: src
-
+  build-depends: base
   exposed-modules: Termonoid
   default-language: Haskell2010
   ghc-options: -Wall
@@ -76,6 +76,7 @@ test-suite test-term
   hs-source-dirs: test
   main-is: TestTerm.hs
   type:  exitcode-stdio-1.0
-  build-depends: Termonoid
+  build-depends: base
+               , Termonoid
   default-language: Haskell2010
   ghc-options: -Wall
