@@ -24,5 +24,11 @@ main = do
     liftIO $ print "hi"
     return True
 
+  win `on` keyPressEvent $ do
+    k <- eventKeyName
+    liftIO $ print k
+    return True
+
+
   mainGUI
   mainQuit
