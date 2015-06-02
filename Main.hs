@@ -1,4 +1,5 @@
 module Main where
 
+import qualified Termonoid as T
 
-main = undefined
+main = T.main
