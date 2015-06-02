@@ -1,5 +1,5 @@
 {-# LANGUAGE StandaloneDeriving, FlexibleInstances #-}
-module Termonoid where
+module Pseudoterminal where
 
 import System.Posix.Pty
 import System.Process
