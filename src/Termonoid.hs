@@ -3,7 +3,7 @@ module Termonoid where
 
 import System.Posix.Pty
 import System.Process
-import Data.ByteString.Char8 (pack, ByteString)
+import Data.ByteString.Char8 (pack, ByteString, unpack)
 
 import Graphics.UI.Gtk
 import System.IO
@@ -29,8 +29,8 @@ kvToS kv = case keyToChar kv of
             Just c -> [c]
             Nothing -> []
 
-
-type PtyOut = Either [PtyControlCode] ByteString
+-- type PtyOut = Either [PtyControlCode] ByteString
+type PtyOut = ByteString
 
 type EventSource a = (AddHandler a, a -> IO ())
 
@@ -42,23 +42,33 @@ fire = snd
 
 
 setupNetwork :: EventSource KeyVal -> EventSource PtyOut -> Pty
-                -> IO EventNetwork
-setupNetwork keyPress textIn pty = compile $ do
+                -> TextBuffer -> IO EventNetwork
+setupNetwork keyPress textIn pty buf = compile $ do
   ePressed <- fromAddHandler $ addHandler keyPress
   eText <- fromAddHandler $ addHandler textIn
 
   -- let fromPtyOut :: PtyOut -> String = either (\_ -> "") show
-  let eGood = apply (pure $ pack . show) eText
+  -- let eGood = apply (pure show) eText
+
+  let eCharable = filterJust $ keyToChar <$> ePressed
+      ePrintableChars = filterE (`elem` ['A'..'z']) eCharable
+      eEnter = filterE (== '\n') eCharable
+      bufAppend :: [Char] -> IO ()
+      bufAppend = textBufferInsertAtCursor buf
+      bufAppendC c = bufAppend [c]
+      -- and now we want to grab the last lines + push them down to the shell
 
   reactimate $ fmap print ePressed
   reactimate $ fmap print eText
-  reactimate $ (writePty pty) <$> eGood
+
+  reactimate $ bufAppendC <$> ePrintableChars
+  reactimate $ bufAppend <$> (apply (pure unpack) eText)
 
 
 watch :: EventSource PtyOut -> Pty -> IO ()
 watch textIn pty = forever $ do
-  got <- tryReadPty pty
-  fire textIn  got
+  got <- readPty pty
+  fire textIn got
   threadWaitReadPty pty
   return ()
 
@@ -94,10 +104,15 @@ main = do
   initGUI >>= print
 
   win <- windowNew
+  txt <- textViewNew
+  txtBuf <- textViewGetBuffer txt
+
+  containerAdd win txt
+
   widgetShowAll win
 
   (keyPress, textIn) <- (,) <$> newAddHandler <*> newAddHandler
-  network <- setupNetwork keyPress textIn pty
+  network <- setupNetwork keyPress textIn pty txtBuf
   actuate network
 
   forkIO $ watch textIn pty
