@@ -1,4 +1,4 @@
-{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE StandaloneDeriving, ScopedTypeVariables #-}
 module Termonoid where
 
 import System.Posix.Pty
@@ -41,13 +41,18 @@ fire :: EventSource a -> a -> IO ()
 fire = snd
 
 
-setupNetwork :: EventSource KeyVal -> EventSource PtyOut -> IO EventNetwork
-setupNetwork keyPress textIn = compile $ do
+setupNetwork :: EventSource KeyVal -> EventSource PtyOut -> Pty
+                -> IO EventNetwork
+setupNetwork keyPress textIn pty = compile $ do
   ePressed <- fromAddHandler $ addHandler keyPress
   eText <- fromAddHandler $ addHandler textIn
 
+  -- let fromPtyOut :: PtyOut -> String = either (\_ -> "") show
+  let eGood = apply (pure $ pack . show) eText
+
   reactimate $ fmap print ePressed
   reactimate $ fmap print eText
+  reactimate $ (writePty pty) <$> eGood
 
 
 watch :: EventSource PtyOut -> Pty -> IO ()
@@ -86,17 +91,13 @@ main = do
   getTerminalAttributes pty >>= print . getAttributes
   attrs <- getTerminalAttributes pty
 
-  setTerminalAttributes pty (withMinInput (withTime attrs 0) 0) Immediately
-
-  getTerminalAttributes pty >>= print . getAttributes
-
   initGUI >>= print
 
   win <- windowNew
   widgetShowAll win
 
   (keyPress, textIn) <- (,) <$> newAddHandler <*> newAddHandler
-  network <- setupNetwork keyPress textIn
+  network <- setupNetwork keyPress textIn pty
   actuate network
 
   forkIO $ watch textIn pty
