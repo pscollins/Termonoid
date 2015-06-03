@@ -1,98 +1,43 @@
-{-# LANGUAGE StandaloneDeriving, FlexibleInstances, TemplateHaskell #-}
 module Termonoid where
 
-import System.Posix.Terminal
-import System.Posix.IO
-import System.IO
-import GHC.IO.Handle
+import System.Posix.Pty
 import System.Process
 import Data.ByteString.Char8 (pack)
-import Control.Monad
-import Control.Lens.TH
-import Control.Lens.Setter
+
+import Graphics.UI.Gtk
+import System.IO
+import Control.Monad.IO.Class
+
+-- | Spawn in my regular env
+spawnWithEnv :: FilePath -> [String] ->
+                (Int, Int) -> IO (Pty, ProcessHandle)
+spawnWithEnv = spawnWithPty Nothing True
 
 
-makeLensesFor [
-  ("cmdspec", "cmdspec'")
-  , ("cwd", "cwd'")
-  , ("env", "env'")
-  , ("std_in", "std_in'")
-  , ("std_out", "std_out'")
-  , ("std_err", "std_err'")
-  , ("close_fds", "close_fds'")
-  , ("create_group", "create_group'")
-  , ("delegate_ctlc", "delegate_ctlc'")] ''CreateProcess
-
-
-deriving instance Show BaudRate
-deriving instance Show StdStream
-deriving instance Show CmdSpec
-deriving instance Show CreateProcess
--- deriving instance Show (Either [PtyControlCode] ByteString)
-
-data Attributes = Attributes { inSpeed :: BaudRate
-                             , outSpeed :: BaudRate
-                             , bitsInByte :: Int
-                             , inTime :: Int
-                             , minIn :: Int } deriving Show
-                             -- , termMode :: TerminalMode}
-
-getAttributes :: TerminalAttributes -> Attributes
-getAttributes = Attributes <$>
-                inputSpeed <*>
-                outputSpeed <*>
-                bitsPerByte <*>
-                inputTime <*>
-                minInput
-
-data Pty = Pty {master, slave :: Handle}
-
-readPty :: Pty -> IO String
-readPty = hGetLine . master
-
-writePty :: Pty -> String -> IO ()
-writePty = hPutStr . slave
-
--- runExecutable :: FilePath -> [String] -> Handle -> IO ProcessHandle
--- runExecutable path args hSlave = do
---   [hStdin, hStdout, hStderr] <- replicateM 3 (Just <$> hDuplicate hSlave)
---   runProcess path args Nothing Nothing hStdin hStdout hStderr
-
-mkCreateProcess :: Handle -> CreateProcess
-mkCreateProcess h =
-  CreateProcess { cmdspec = ShellCommand "bash"
-                , cwd = Nothing
-                , env = Nothing
-                , std_in = duped
-                , std_out = duped
-                , std_err = duped
-                , close_fds = False -- ?
-                , create_group = True
-                , delegate_ctlc = False } -- should be true oneday
-  where duped = UseHandle h
-
-main :: IO ()
 main = do
-  (m, s) <- openPseudoTerminal
-  m' <- fdToHandle m
-  m'' <- hDuplicate m'
-  s' <- fdToHandle s
-  let pty = Pty m' s'
-  let createP = mkCreateProcess m''
-  createProcess_ "err" createP
-  -- ph <- runExecutable "bash" [] s'
-  -- hPutStrLn s' "aaaaaaaaaaaaaaaaaaaaaaaaaaA\n\n\n\n\n\n\n\n"
-  hPutStrLn m' "aaaaaaaaaaaaaaaaaaaaaaaaaaA\n\n\n\n\n\n"
-  hGetLine m' >>= print
-  hGetLine m' >>= print
-  hGetLine m' >>= print
-  -- writePty pty "ls"
-  -- readPty pty >>= print
-  -- (pty, shellHandle) <-
-  --   spawnWithEnv "bash" [] (20, 10)
+  (pty, _) <-
+    spawnWithEnv "bash" [] (20, 10)
 
-  -- getTerminalName pty >>= print
-  -- getSlaveTerminalName pty >>= print
+  getTerminalName pty >>= print
+  getSlaveTerminalName pty >>= print
+
+  initGUI >>= print
+
+  win <- windowNew
+  widgetShowAll win
+
+  let writeMe = writePty pty
+  let readMe = readPty pty
+
+  win `on` keyPressEvent $ do
+    k <- eventKeyVal
+    liftIO $ print k
+    liftIO $ writeMe $ pack $ show k
+    liftIO readMe >>= return . print
+    return True
+    -- readMe >>= print
+
+  mainGUI
 
   -- tryReadPty pty >>= print
   -- writePty pty $ pack "ls\n"
