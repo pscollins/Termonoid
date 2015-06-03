@@ -78,6 +78,7 @@ library
                , gtk
                , transformers
                , unix
+               , lens
   exposed-modules: Termonoid
   default-language: Haskell2010
   ghc-options: -Wall -fno-warn-orphans

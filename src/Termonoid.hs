@@ -1,17 +1,28 @@
-{-# LANGUAGE StandaloneDeriving, FlexibleInstances #-}
+{-# LANGUAGE StandaloneDeriving, FlexibleInstances, TemplateHaskell #-}
 module Termonoid where
 
 import System.Posix.Terminal
+import System.Posix.IO
 import System.IO
 import GHC.IO.Handle
 import System.Process
 import Data.ByteString.Char8 (pack)
 import Control.Monad
+import Control.Lens.TH
+import Control.Lens.Setter
 
--- -- | Spawn in my regular env
--- spawnWithEnv :: FilePath -> [String] ->
---                 (Int, Int) -> IO (Pty, ProcessHandle)
--- spawnWithEnv = spawnWithPty Nothing True
+
+makeLensesFor [
+  ("cmdspec", "cmdspec'")
+  , ("cwd", "cwd'")
+  , ("env", "env'")
+  , ("std_in", "std_in'")
+  , ("std_out", "std_out'")
+  , ("std_err", "std_err'")
+  , ("close_fds", "close_fds'")
+  , ("create_group", "create_group'")
+  , ("delegate_ctlc", "delegate_ctlc'")] ''CreateProcess
+
 
 deriving instance Show BaudRate
 deriving instance Show StdStream
@@ -42,16 +53,24 @@ readPty = hGetLine . master
 writePty :: Pty -> String -> IO ()
 writePty = hPutStr . slave
 
-runExecutable :: FilePath -> [String] -> Handle -> IO ProcessHandle
-runExecutable path args hSlave = do
-  [hStdin, hStdout, hStderr] <- replicateM 3 (Just <$> hDuplicate hSlave)
-  runProcess path args Nothing Nothing hStdin hStdout hStderr
+-- runExecutable :: FilePath -> [String] -> Handle -> IO ProcessHandle
+-- runExecutable path args hSlave = do
+--   [hStdin, hStdout, hStderr] <- replicateM 3 (Just <$> hDuplicate hSlave)
+--   runProcess path args Nothing Nothing hStdin hStdout hStderr
 
--- mkCreateProcess :: Pty -> CreateProcess
--- mkCreateProcess (Pty m s) = CreateProcess undefined
+mkCreateProcess :: Pty -> String -> CreateProcess
+mkCreateProcess (Pty m s) toRun = CreateProcess {
+
 
 main :: IO ()
-main = undefined
+main = do
+  (m, s) <- openPseudoTerminal
+  m' <- fdToHandle m
+  s' <- fdToHandle s
+  let pty = Pty m' s'
+  -- ph <- runExecutable "bash" [] s'
+  writePty pty "ls"
+  readPty pty >>= print
   -- (pty, shellHandle) <-
   --   spawnWithEnv "bash" [] (20, 10)
 
