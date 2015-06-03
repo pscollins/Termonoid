@@ -1,6 +1,13 @@
-module Terminoid.Terminal where
+{-# LANGUAGE StandaloneDeriving #-}
+module Termonoid.Terminal where
 
--- | Spawn in my regular env
+import Graphics.UI.Gtk
+import System.Posix.Pty
+import System.Process
+import Control.Applicative
+import Data.ByteString.Char8 (pack, ByteString, unpack)
+
+
 spawnWithEnv :: FilePath -> [String] ->
                 (Int, Int) -> IO (Pty, ProcessHandle)
 spawnWithEnv = spawnWithPty Nothing True
@@ -14,16 +21,6 @@ kvToS kv = case keyToChar kv of
             Nothing -> []
 
 type PtyOut = ByteString
-
-
-
-watch :: EventSource PtyOut -> Pty -> IO ()
-watch textIn pty = forever $ do
-  got <- readPty pty
-  fire textIn got
-  threadWaitReadPty pty
-  return ()
-
 
 deriving instance Show BaudRate
 -- deriving instance Show (Either [PtyControlCode] ByteString)

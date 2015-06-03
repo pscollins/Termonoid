@@ -1,11 +1,8 @@
 {-# LANGUAGE StandaloneDeriving, ScopedTypeVariables #-}
 module Termonoid.Termonoid where
 
-import System.Posix.Pty
-import System.Process
-import Data.ByteString.Char8 (pack, ByteString, unpack)
-
 import Graphics.UI.Gtk
+
 import System.IO
 import Control.Monad.IO.Class
 import Control.Monad
@@ -15,6 +12,7 @@ import Reactive.Banana.Frameworks
 import Control.Event.Handler
 import Control.Concurrent
 import GHC.Word
+import System.Posix.Pty
 
 import Termonoid.Network
 import Termonoid.Terminal
