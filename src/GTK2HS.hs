@@ -15,7 +15,7 @@ main = do
 
   widgetShowAll win
 
--- THESE DONT DO ANYTHING, DONT KNOW WHY
+  -- THESE DONT DO ANYTHING, DONT KNOW WHY
   -- on win mapSignal (print "hello world")
   -- on win showSignal (print "hello world")
   -- on win focus (\_ -> print "hello world" >> return True)
