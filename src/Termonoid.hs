@@ -58,19 +58,36 @@ writePty = hPutStr . slave
 --   [hStdin, hStdout, hStderr] <- replicateM 3 (Just <$> hDuplicate hSlave)
 --   runProcess path args Nothing Nothing hStdin hStdout hStderr
 
-mkCreateProcess :: Pty -> String -> CreateProcess
-mkCreateProcess (Pty m s) toRun = CreateProcess {
-
+mkCreateProcess :: Handle -> CreateProcess
+mkCreateProcess h =
+  CreateProcess { cmdspec = ShellCommand "bash"
+                , cwd = Nothing
+                , env = Nothing
+                , std_in = duped
+                , std_out = duped
+                , std_err = duped
+                , close_fds = False -- ?
+                , create_group = True
+                , delegate_ctlc = False } -- should be true oneday
+  where duped = UseHandle h
 
 main :: IO ()
 main = do
   (m, s) <- openPseudoTerminal
   m' <- fdToHandle m
+  m'' <- hDuplicate m'
   s' <- fdToHandle s
   let pty = Pty m' s'
+  let createP = mkCreateProcess m''
+  createProcess_ "err" createP
   -- ph <- runExecutable "bash" [] s'
-  writePty pty "ls"
-  readPty pty >>= print
+  -- hPutStrLn s' "aaaaaaaaaaaaaaaaaaaaaaaaaaA\n\n\n\n\n\n\n\n"
+  hPutStrLn m' "aaaaaaaaaaaaaaaaaaaaaaaaaaA\n\n\n\n\n\n"
+  hGetLine m' >>= print
+  hGetLine m' >>= print
+  hGetLine m' >>= print
+  -- writePty pty "ls"
+  -- readPty pty >>= print
   -- (pty, shellHandle) <-
   --   spawnWithEnv "bash" [] (20, 10)
 
