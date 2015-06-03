@@ -38,7 +38,7 @@ fire :: EventSource a -> a -> IO ()
 fire = snd
 
 
-setupNetwork :: EventSource KeyVal -> EventSource Word -> IO EventNetwork
+setupNetwork :: EventSource KeyVal -> EventSource ByteString -> IO EventNetwork
 setupNetwork keyPress textIn = compile $ do
   ePressed <- fromAddHandler $ addHandler keyPress
   eText <- fromAddHandler $ addHandler textIn
