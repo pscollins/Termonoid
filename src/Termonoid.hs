@@ -56,11 +56,14 @@ setupNetwork keyPress textIn pty buf = compile $ do
       bufAppend :: [Char] -> IO ()
       bufAppend = textBufferInsertAtCursor buf
       bufAppendC c = bufAppend [c]
+      eGetToPrint = accumE "" (fmap (:) ePrintableChars)
+                               -- `union`
+                               -- (fmap (\_ -> \_ -> "") eEnter))
       -- and now we want to grab the last lines + push them down to the shell
 
   reactimate $ fmap print ePressed
   reactimate $ fmap print eText
-
+  reactimate $ fmap print eGetToPrint
   reactimate $ bufAppendC <$> ePrintableChars
   reactimate $ bufAppend <$> (apply (pure unpack) eText)
 
