@@ -13,6 +13,13 @@ spawnWithEnv :: FilePath -> [String] ->
                 (Int, Int) -> IO (Pty, ProcessHandle)
 spawnWithEnv = spawnWithPty Nothing True
 
+writePty' :: Pty -> String -> IO ()
+writePty' pty s = writePty pty $ pack s
+
+kvToS :: KeyVal -> String
+kvToS kv = case keyToChar kv of
+            Just c -> [c]
+            Nothing -> []
 
 main = do
   (pty, _) <-
@@ -31,9 +38,9 @@ main = do
 
   win `on` keyPressEvent $ do
     k <- eventKeyVal
-    liftIO $ print k
-    liftIO $ writeMe $ pack $ show k
-    liftIO readMe >>= return . print
+    liftIO $ print $ keyToChar k
+    liftIO $ writePty' pty $ kvToS k
+    liftIO $ readPty pty >>= return . print
     return True
     -- readMe >>= print
 
