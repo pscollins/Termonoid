@@ -50,11 +50,12 @@ setupNetwork keyPress textIn = compile $ do
 watch :: EventSource ByteString -> Pty -> IO ()
 watch textIn pty = forever $ do
   got <- readPty pty
-  fire textIn got
+  return ()
+  -- fire textIn got
 
 main = do
   (pty, _) <-
-    spawnWithEnv "bash" [] (20, 10)
+    spawnWithEnv "ls" [] (80, 80)
 
   getTerminalName pty >>= print
   getSlaveTerminalName pty >>= print
@@ -66,32 +67,18 @@ main = do
 
   (keyPress, textIn) <- (,) <$> newAddHandler <*> newAddHandler
   network <- setupNetwork keyPress textIn
+  actuate network
 
   forkIO $ watch textIn pty
 
-
-  actuate network
 
   win `on` keyPressEvent $ do
     k <- eventKeyVal
     liftIO $ fire keyPress k
     liftIO $ print $ keyToChar k
-    liftIO $ writePty' pty $ kvToS k
+    -- liftIO $ writePty' pty $ kvToS k
     -- liftIO $ readPty pty >>= return . print
     return True
     -- readMe >>= print
 
   mainGUI
-
-  -- tryReadPty pty >>= print
-  -- writePty pty $ pack "ls\n"
-  -- tryReadPty pty >>= print
-  -- tryReadPty pty >>= print
-  -- tryReadPty pty >>= print
-  -- tryReadPty pty >>= print
-  -- tryReadPty pty >>= print
-  -- tryReadPty pty >>= print
-  -- tryReadPty pty >>= print
-
-  -- attrs <- getTerminalAttributes pty >>= return . getAttributes
-  -- print $ attrs
