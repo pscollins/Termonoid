@@ -55,10 +55,10 @@ mkEndMark' buf tv gravity = doSync $ do
   textBufferCreateMark buf Nothing endIter gravity
 
 mkEndMark :: LivePty -> Bool -> IO TextMark
-mkEndMark (LivePty _ tv tb _) = doSync $ mkEndMark' tb tv
+mkEndMark (LivePty _ tv tb _) = doSync . mkEndMark' tb tv
 
 mkIter :: LivePty -> TextMark -> IO TextIter
-mkIter pty tm = doSync (textBufferGetIterAtMark (textBuf pty) tm)
+mkIter pty = doSync . textBufferGetIterAtMark (textBuf pty)
 
 mkLivePty :: Pty -> TextView -> IO LivePty
 mkLivePty pty tv = doSync $ do
@@ -73,7 +73,7 @@ mkLivePty pty tv = doSync $ do
 tagToEnd :: LivePty -> TextIter -> TextTag -> IO ()
 tagToEnd pty start tag = endIter >>= textBufferApplyTag buf tag start
   where buf = textBuf pty
-        endIter = doSync $ textBufferGetEndIter buf
+        endIter = textBufferGetEndIter buf
 
 
 killOne :: LivePty -> IO ()
@@ -82,25 +82,25 @@ killOne pty = doAsync $ do
   textBufferBackspace (textBuf pty) iAm True True >> return ()
 
 buffAppend :: LivePty -> String -> IO ()
-buffAppend pty s = doAsync $ textBufferInsertAtCursor (textBuf pty) . stringToGlib s
+buffAppend pty = doAsync . textBufferInsertAtCursor (textBuf pty) . stringToGlib
 
 buffAppend' :: LivePty -> Char -> IO ()
-buffAppend' pty = (buffAppend pty) . (:[])
+buffAppend' pty = doAsync . (buffAppend pty) . (:[])
 
 buffAppendBS :: LivePty -> ByteString -> IO ()
-buffAppendBS pty = textBufferInsertByteStringAtCursor (textBuf pty)
+buffAppendBS pty = doAsync. textBufferInsertByteStringAtCursor (textBuf pty)
 
 writeConsole :: LivePty -> String -> IO ()
-writeConsole pty = postGUIAsync `seq` writePty (livePty pty) . pack
+writeConsole pty = doAsync . writePty (livePty pty) . pack
 
 scrollTo :: LivePty -> TextMark -> IO ()
-scrollTo pty = textViewScrollMarkOnscreen (textView pty)
+scrollTo pty = doAsync . textViewScrollMarkOnscreen (textView pty)
 
 emptyGlib :: DefaultGlibString
 emptyGlib = stringToGlib ""
 
 newTextTag :: LivePty -> IO TextTag
-newTextTag pty = do
+newTextTag pty = doSync $ do
   table <- textBufferGetTagTable (textBuf pty)
   tag <- textTagNew Nothing
   textTagTableAdd table tag
@@ -116,7 +116,7 @@ colorTag attrs (Set (col, pos)) = set attrs [ (getter pos) := newColor ]
         newColor = map toLower $ show col
 
 colorTag' :: LivePty -> ColorCmd -> IO (TextTag)
-colorTag' pty cmd = do
+colorTag' pty cmd = doSync $ do
   tag <- newTextTag pty
   colorTag tag cmd
   return tag
@@ -125,7 +125,7 @@ colorTag' pty cmd = do
 -- the body of text we want to insert and drop marks every time we
 -- see a formatting code that we need to take care of.
 dropMarks :: LivePty -> [DisplayExpr] -> IO [Maybe ([ColorCmd], TextMark)]
-dropMarks pty = mapM dropMark
+dropMarks pty = doSync . mapM dropMark
   where dropMark :: DisplayExpr -> IO (Maybe ([ColorCmd], TextMark))
         dropMark (Text s) = buffAppend pty s >> return Nothing
         dropMark (SGR cmds) = Just <$> (mkEndMark pty True >>= return . (,) cmds)
@@ -133,12 +133,12 @@ dropMarks pty = mapM dropMark
 -- | Second, we replace our marks with tags to format the document.
 -- Colors are the only kind of formatting that needs tags.
 dropTags :: LivePty -> [Maybe ([ColorCmd], TextMark)] -> IO [([TextTag], TextMark)]
-dropTags pty = mapM dropTag . catMaybes
+dropTags pty = doSync . mapM dropTag . catMaybes
   where dropTag (cmds, mark) = mapM colorTag'' cmds >>= return . (, mark)
         colorTag'' = colorTag' pty
 
 applyTags :: LivePty -> [([TextTag], TextMark)] -> IO ()
-applyTags pty = mapM_ doTags
+applyTags pty = doAsync . mapM_ doTags
   where doTags (tags, mark) = do
           start <- mkIter pty mark
           mapM_ (tagToEnd pty start) tags

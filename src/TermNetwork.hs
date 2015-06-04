@@ -103,11 +103,11 @@ setupNetwork keyPress textIn bufChanged pty = compile $ do
 
 
   -- REAL LIFE
-  reactimate $ doSync . buffAppend' pty <$> (alphaNum kbdEvents `union` clear kbdEvents)
-  reactimate $ doSync . (const $ killOne pty) <$> del kbdEvents
-  reactimate $ doSync . writeParsed pty . parse . unpack <$> eText
-  reactimate $ doSync . writeConsole pty <$> fullLines
-  reactimate $ doSync . scrollTo pty <$> (endMark pty <$ eChanged)
+  reactimate $ buffAppend' pty <$> (alphaNum kbdEvents `union` clear kbdEvents)
+  reactimate $ (const $ killOne pty) <$> del kbdEvents
+  reactimate $ writeParsed pty . parse . unpack <$> eText
+  reactimate $ writeConsole pty <$> fullLines
+  reactimate $ scrollTo pty <$> (endMark pty <$ eChanged)
 
 
 
