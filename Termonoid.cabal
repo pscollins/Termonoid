@@ -79,7 +79,8 @@ library
                , transformers
                , unix
                , glib
-  exposed-modules: Termonoid, TermNetwork, Terminal, Parser
+               , split
+  exposed-modules: Termonoid, TermNetwork, Terminal, Parser, ParserTypes
   default-language: Haskell2010
   ghc-options: -Wall -fno-warn-orphans
 
