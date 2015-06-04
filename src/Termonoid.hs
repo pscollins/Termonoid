@@ -1,5 +1,5 @@
 {-# LANGUAGE StandaloneDeriving, ScopedTypeVariables #-}
-module Termonoid.Termonoid where
+module Termonoid where
 
 import Graphics.UI.Gtk
 
@@ -14,8 +14,8 @@ import Control.Concurrent
 import GHC.Word
 import System.Posix.Pty
 
-import Termonoid.Network
-import Termonoid.Terminal
+import Network
+import Terminal
 
 
 main = do

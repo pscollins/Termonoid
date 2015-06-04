@@ -1,4 +1,4 @@
-module Termonoid.Network where
+module Network where
 
 import Graphics.UI.Gtk
 import Reactive.Banana
@@ -8,7 +8,7 @@ import System.Posix.Pty
 import Control.Monad
 import Data.ByteString.Char8 (pack, ByteString, unpack)
 
-import Termonoid.Terminal
+import Terminal
 
 
 type EventSource a = (AddHandler a, a -> IO ())

@@ -1,5 +1,5 @@
 {-# LANGUAGE StandaloneDeriving #-}
-module Termonoid.Terminal where
+module Terminal where
 
 import Graphics.UI.Gtk
 import System.Posix.Pty
