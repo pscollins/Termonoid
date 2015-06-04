@@ -64,8 +64,7 @@ mkScrollEvent (LivePty {livePty, textView, textBuf}) bufChanged eChanged = do
     endIter <- textBufferGetEndIter textBuf
     endMark <- textBufferCreateMark textBuf Nothing endIter False
 
-    textBuf `on` bufferChanged $ do
-      liftIO $ fire bufChanged ()
+
 
     return (endMark <$ eChanged)
 
@@ -76,8 +75,6 @@ setupNetwork keyPress textIn bufChanged pty = compile $ do
   ePressed <- fromAddHandler $ addHandler keyPress
   eText <- fromAddHandler $ addHandler textIn
   eChanged <- fromAddHandler $ addHandler bufChanged
-
-  -- scroll <- mkScrollEvent pty bufChanged eChanged
 
   let kbdEvents = mkKbdEvents ePressed
       doSend = lineToSend kbdEvents

@@ -55,4 +55,6 @@ mainAxn = do
     liftIO $ print $ keyToChar k
     return True
 
+  (textBuf sessionPty) `on` bufferChanged >> liftIO $ fire bufChange ()
+
   mainGUI
