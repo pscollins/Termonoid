@@ -36,9 +36,9 @@ main = hspec $ do
 
   describe "control seq" $ do
     it "makes a CSI" $ do
-      mkControlSeq 'J' ["1"] `shouldBe` CSI 'J' ["1"]
+      mkControlSeq 'J' ["1"] `shouldBe` Just (CSI 'J' ["1"])
   describe "SGR" $ do
     it "makes reset" $ do
-      mkColorCmd "0" `shouldBe` Reset
+      mkColorCmd "0" `shouldBe` Just Reset
     it "makes bg and fg" $ do
-      mkColorCmd "30" `shouldBe` Set (Black, Foreground)
+      mkColorCmd "30" `shouldBe` Just (Set (Black, Foreground))
