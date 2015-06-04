@@ -21,7 +21,10 @@ mainAxn = do
 
   getTerminalName pty >>= print
   getSlaveTerminalName pty >>= print
-  getTerminalAttributes pty >>= print . getAttributes
+  attrs <- getTerminalAttributes pty
+  print $ getAttributes attrs
+
+  setTerminalAttributes pty (attrs `withoutMode` EnableEcho) Immediately
 
   initGUI >>= print
 

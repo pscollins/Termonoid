@@ -34,6 +34,10 @@ main = hspec $ do
     it "recognizes other settings" $ do
       parse "\x1b[1J" `shouldBe` [ CSI 'J' ["1"] ]
 
+    it "works on real output" $ do
+      parse "\x1b[0m\x1b[01;34m.git\x1b[0m\r\ndrwxr-xr-x" `shouldBe`
+        [SGR [Reset], Text ".git", SGR [Reset], Text "\r\ndrwxr-xr-x"]
+
   describe "control seq" $ do
     it "makes a CSI" $ do
       mkControlSeq 'J' ["1"] `shouldBe` Just (CSI 'J' ["1"])

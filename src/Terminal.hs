@@ -9,6 +9,7 @@ import Data.ByteString.Char8 (pack, ByteString)
 import System.Glib.UTFString
 import Control.Monad
 import Data.Maybe (catMaybes)
+import Data.Char (toLower)
 
 import ParserTypes
 
@@ -67,7 +68,7 @@ mkLivePty pty tv = do
 tagToEnd :: LivePty -> TextIter -> TextTag -> IO ()
 tagToEnd pty start tag = endIter >>= textBufferApplyTag buf tag start
   where buf = textBuf pty
-        endIter = mkIter pty $ endMark pty
+        endIter = textBufferGetEndIter buf
 
 buffAppend :: LivePty -> String -> IO ()
 buffAppend pty = textBufferInsertAtCursor (textBuf pty) . stringToGlib
@@ -95,7 +96,7 @@ colorTag attrs (Set (col, pos)) = set attrs [ (getter pos) := newColor ]
   where getter :: ColorPos -> WriteAttr TextTag String
         getter Foreground = textTagForeground
         getter Background = textTagBackground
-        newColor = show  col
+        newColor = map toLower $ show col
 
 colorTag' :: ColorCmd -> IO (TextTag)
 colorTag' cmd = do
