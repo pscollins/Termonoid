@@ -1,4 +1,4 @@
-{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE StandaloneDeriving, TupleSections #-}
 module Terminal where
 
 import Graphics.UI.Gtk
@@ -7,6 +7,8 @@ import System.Process
 import Control.Applicative
 import Data.ByteString.Char8 (pack, ByteString)
 import System.Glib.UTFString
+import Control.Monad
+import Data.Maybe (catMaybes)
 
 import ParserTypes
 
@@ -38,7 +40,9 @@ data LivePty = LivePty { livePty :: Pty
                        , endMark :: TextMark
                        }
 
-
+-- | Note that "left gravity" = false means "falls to the right,"
+-- i.e. follows insertions. Left gravity = true means does not follow
+-- insertions.
 mkEndMark' :: TextBuffer -> TextView -> Bool -> IO TextMark
 mkEndMark' buf tv gravity = do
   endIter <- textBufferGetEndIter buf
@@ -46,6 +50,9 @@ mkEndMark' buf tv gravity = do
 
 mkEndMark :: LivePty -> Bool -> IO TextMark
 mkEndMark (LivePty _ tv tb _) = mkEndMark' tb tv
+
+mkIter :: LivePty -> TextMark -> IO TextIter
+mkIter pty = textBufferGetIterAtMark (textBuf pty)
 
 mkLivePty :: Pty -> TextView -> IO LivePty
 mkLivePty pty tv = do
@@ -57,8 +64,10 @@ mkLivePty pty tv = do
                  , textBuf = buf
                  , endMark = end }
 
-writeExpr :: LivePty -> [DisplayExpr] -> IO ()
-writeExpr pty = undefined
+tagToEnd :: LivePty -> TextIter -> TextTag -> IO ()
+tagToEnd pty start tag = endIter >>= textBufferApplyTag buf tag start
+  where buf = textBuf pty
+        endIter = mkIter pty $ endMark pty
 
 buffAppend :: LivePty -> String -> IO ()
 buffAppend pty = textBufferInsertAtCursor (textBuf pty) . stringToGlib
@@ -88,13 +97,36 @@ colorTag attrs (Set (col, pos)) = set attrs [ (getter pos) := newColor ]
         getter Background = textTagBackground
         newColor = show  col
 
--- | We're going to apply formatting in two steps: first, walk a long
+colorTag' :: ColorCmd -> IO (TextTag)
+colorTag' cmd = do
+  tag <- textTagNew Nothing
+  colorTag tag cmd
+  return tag
+
+-- | We're going to apply formatting in three steps: first, walk along
 -- the body of text we want to insert and drop marks every time we
 -- see a formatting code that we need to take care of.
-dropTags :: LivePty -> [DisplayExpr] -> IO [TextMark]
-dropTags pty = mapM dropTag
-  where dropTag = undefined
+dropMarks :: LivePty -> [DisplayExpr] -> IO [Maybe ([ColorCmd], TextMark)]
+dropMarks pty = mapM dropMark
+  where dropMark :: DisplayExpr -> IO (Maybe ([ColorCmd], TextMark))
+        dropMark (Text s) = buffAppend pty s >> return Nothing
+        dropMark (SGR cmds) = Just <$> (mkEndMark pty True >>= return . (,) cmds)
+
+-- | Second, we replace our marks with tags to format the document.
+-- Colors are the only kind of formatting that needs tags.
+dropTags :: [Maybe ([ColorCmd], TextMark)] -> IO [([TextTag], TextMark)]
+dropTags = mapM dropTag . catMaybes
+  where dropTag (cmds, mark) = mapM colorTag' cmds >>= return . (, mark)
+
+applyTags :: LivePty -> [([TextTag], TextMark)] -> IO ()
+applyTags pty = mapM_ doTags
+  where doTags (tags, mark) = do
+          start <- mkIter pty mark
+          mapM_ (tagToEnd pty start) tags
+
 
 writeParsed :: LivePty -> [DisplayExpr] -> IO ()
-writeParsed = undefined
+writeParsed pty exprs = dropMarks' exprs >>= dropTags >>= applyTags'
+  where dropMarks' = dropMarks pty
+        applyTags' = applyTags pty
 -- writeParsed pty (Text s) = buffAppend pty s
