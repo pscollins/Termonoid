@@ -1,4 +1,4 @@
-module Network where
+module TermNetwork where
 
 import Graphics.UI.Gtk
 import Reactive.Banana

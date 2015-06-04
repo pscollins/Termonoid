@@ -14,11 +14,11 @@ import Control.Concurrent
 import GHC.Word
 import System.Posix.Pty
 
-import Network
+import TermNetwork
 import Terminal
 
 
-main = do
+mainAxn = do
   (pty, _) <-
     spawnWithEnv "bash" [] (80, 80)
 
