@@ -11,6 +11,7 @@ import System.Glib.UTFString (stringToGlib)
 import Data.Char (ord)
 
 import Terminal
+import Parser
 
 type EventSource a = (AddHandler a, a -> IO ())
 
@@ -26,8 +27,6 @@ data KbdEvents t = KbdEvents { alphaNum :: Event t Char
 watch :: EventSource ByteString -> Pty -> IO ()
 watch textIn pty = forever $
   readPty pty >>= fire textIn >> threadWaitReadPty pty
-  -- threadWaitReadPty pty
-  -- return ()
 
 lineToSend :: KbdEvents t -> Event t String
 lineToSend KbdEvents {alphaNum, clear} =
@@ -94,9 +93,9 @@ setupNetwork keyPress textIn bufChanged pty = compile $ do
 
   -- REAL LIFE
   reactimate $ buffAppend' pty <$> (alphaNum kbdEvents `union` clear kbdEvents)
-  reactimate $ buffAppendBS pty <$> eText
+  reactimate $ writeParsed pty . parse . unpack <$> eText
   reactimate $ writeConsole pty <$> fullLines
-  reactimate $ scrollTo pty <$> (endMark pty <$ eChanged )
+  reactimate $ scrollTo pty <$> (endMark pty <$ eChanged)
 
 
 

@@ -81,6 +81,7 @@ library
                , unix
                , glib
                , split
+               , text
   exposed-modules: Termonoid, TermNetwork, Terminal, Parser, ParserTypes
   default-language: Haskell2010
   ghc-options: -Wall -fno-warn-orphans
