@@ -31,14 +31,15 @@ mainAxn = do
 
   win <- windowNew
   txt <- textViewNew
-  txtBuf <- textViewGetBuffer txt
+  textViewSetWrapMode txt WrapWord
+  livePty <- mkLivePty pty txt
 
   containerAdd win txt
 
   widgetShowAll win
 
   (keyPress, textIn) <- (,) <$> newAddHandler <*> newAddHandler
-  network <- setupNetwork keyPress textIn pty txtBuf
+  network <- setupNetwork keyPress textIn livePty
   actuate network
 
   forkIO $ watch textIn pty
@@ -48,9 +49,6 @@ mainAxn = do
     k <- eventKeyVal
     liftIO $ fire keyPress k
     liftIO $ print $ keyToChar k
-    -- liftIO $ writePty' pty $ kvToS k
-    -- liftIO $ readPty pty >>= return . print
     return True
-    -- readMe >>= print
 
   mainGUI

@@ -24,12 +24,11 @@ fire = snd
 data KbdEvents t = KbdEvents { alphaNum :: Event t Char
                              , clear :: Event t Char }
 
-watch :: EventSource PtyOut -> Pty -> IO ()
-watch textIn pty = forever $ do
-  got <- readPty pty
-  fire textIn got
-  threadWaitReadPty pty
-  return ()
+watch :: EventSource ByteString -> Pty -> IO ()
+watch textIn pty = forever $
+  readPty pty >>= fire textIn >> threadWaitReadPty pty
+  -- threadWaitReadPty pty
+  -- return ()
 
 lineToSend :: KbdEvents t -> Event t String
 lineToSend KbdEvents {alphaNum, clear} =
@@ -58,17 +57,17 @@ mkKbdEvents eText = KbdEvents { alphaNum = filterJust $ keyToChar <$> eText
                               , clear = '\n' <$ filterE (== returnVal) eText }
   where returnVal = keyFromName $ stringToGlib "Return"
 
-setupNetwork :: EventSource KeyVal -> EventSource PtyOut -> Pty
-                -> TextBuffer -> IO EventNetwork
-setupNetwork keyPress textIn pty buf = compile $ do
+setupNetwork :: EventSource KeyVal -> EventSource ByteString -> LivePty
+                -> IO EventNetwork
+setupNetwork keyPress textIn pty = compile $ do
   ePressed <- fromAddHandler $ addHandler keyPress
   eText <- fromAddHandler $ addHandler textIn
 
   let kbdEvents = mkKbdEvents ePressed
       doSend = lineToSend kbdEvents
       fullLines = fixUp  <$> (filterJust $ rightEmpty <$> eventPairs doSend)
-      bufAppend = textBufferInsertAtCursor buf . stringToGlib
-      bufAppendC = bufAppend  . (:[])
+
+
   -- let fromPtyOut :: PtyOut -> String = either (\_ -> "") show
   -- let eGood = apply (pure show) eText
 
@@ -82,9 +81,9 @@ setupNetwork keyPress textIn pty buf = compile $ do
   reactimate $ print . map ord . unpack <$> eText
 
   -- REAL LIFE
-  reactimate $ bufAppendC <$> alphaNum kbdEvents
-  reactimate $ textBufferInsertByteStringAtCursor buf <$> eText
-  reactimate $ writePty pty . pack <$> fullLines
+  reactimate $ (buffAppend' pty) <$> (alphaNum kbdEvents `union` clear kbdEvents)
+  reactimate $ (buffAppendBS pty) <$> eText
+  reactimate $ writeConsole pty <$> fullLines
 
 
 
