@@ -42,6 +42,11 @@ eventPairs :: Event t String -> Event t (String, String)
 eventPairs ev = accumE ("", "") (adv <$> ev)
   where adv new (older, old) = (old, new)
 
+
+rightEmpty :: (String, String) -> Maybe String
+rightEmpty (s, "") = Just s
+rightEmpty _ = Nothing
+
 -- This is too restrictive, but let's use it for now
 -- Be aware that control keys tend to not actually have char representations
 mkKbdEvents :: Event t KeyVal -> KbdEvents t
@@ -57,6 +62,8 @@ setupNetwork keyPress textIn pty buf = compile $ do
 
   let kbdEvents = mkKbdEvents ePressed
       doSend = lineToSend kbdEvents
+      fullLines = reverse  <$> (filterJust $ rightEmpty <$> eventPairs doSend)
+      bufAppendC = textBufferInsertAtCursor buf . stringToGlib . (:[])
   -- let fromPtyOut :: PtyOut -> String = either (\_ -> "") show
   -- let eGood = apply (pure show) eText
 
@@ -65,6 +72,11 @@ setupNetwork keyPress textIn pty buf = compile $ do
   reactimate $ print <$> keyName <$> ePressed
   reactimate $ print <$> doSend
   reactimate $ print <$> eventPairs doSend
+  reactimate $ print <$> fullLines
+
+  -- REAL LIFE
+  reactimate $ bufAppendC <$> alphaNum kbdEvents
+
   -- let eCharable = filterJust $ keyToChar <$> ePressed
   --     ePrintableChars = filterE (`elem` ['A'..'z']) eCharable
   --     eEnter = filterE (== '\n') eCharable
