@@ -45,15 +45,19 @@ getAttributes = Attributes <$>
 data LivePty = LivePty { livePty :: Pty
                        , textView :: TextView
                        , textBuf :: TextBuffer
+                       , endMark :: TextMark
                        }
 
 mkLivePty :: Pty -> TextView -> IO LivePty
 mkLivePty pty tv = do
   buf <- textViewGetBuffer tv
+  endIter <- textBufferGetEndIter buf
+  endMark <- textBufferCreateMark buf Nothing endIter False
 
   return LivePty { livePty = pty
                  , textView = tv
-                 , textBuf = buf }
+                 , textBuf = buf
+                 , endMark = endMark }
 
 writeExpr :: LivePty -> [DisplayExpr] -> IO ()
 writeExpr pty = undefined

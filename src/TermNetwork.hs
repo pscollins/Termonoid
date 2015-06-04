@@ -4,13 +4,11 @@ module TermNetwork where
 import Graphics.UI.Gtk
 import Reactive.Banana
 import Reactive.Banana.Frameworks
-import Control.Event.Handler
 import System.Posix.Pty
 import Control.Monad
-import Data.ByteString.Char8 (pack, ByteString, unpack)
+import Data.ByteString.Char8 (ByteString, unpack)
 import System.Glib.UTFString (stringToGlib)
 import Data.Char (ord)
-import Control.Concurrent
 
 import Terminal
 
@@ -41,7 +39,7 @@ lineToSend KbdEvents {alphaNum, clear} =
 -- We'd like to make this more general, but oh well
 eventPairs :: Event t String -> Event t (String, String)
 eventPairs ev = accumE ("", "") (adv <$> ev)
-  where adv new (older, old) = (old, new)
+  where adv new (_, old) = (old, new)
 
 
 rightEmpty :: (String, String) -> Maybe String
@@ -59,14 +57,13 @@ mkKbdEvents eText = KbdEvents { alphaNum = filterJust $ keyToChar <$> eText
   where returnVal = keyFromName $ stringToGlib "Return"
 
 
-mkScrollEvent :: LivePty -> EventSource () -> Event t () -> IO (Event t TextMark)
-mkScrollEvent (LivePty {livePty, textView, textBuf}) bufChanged eChanged = do
-    endIter <- textBufferGetEndIter textBuf
-    endMark <- textBufferCreateMark textBuf Nothing endIter False
+-- mkScrollEvent :: LivePty -> EventSource () -> Event t () -> IO (Event t TextMark)
+-- mkScrollEvent (LivePty {livePty, textView, textBuf}) bufChanged eChanged = do
 
 
 
-    return (endMark <$ eChanged)
+
+--     return (endMark <$ eChanged)
 
 
 setupNetwork :: EventSource KeyVal -> EventSource ByteString ->
@@ -96,10 +93,10 @@ setupNetwork keyPress textIn bufChanged pty = compile $ do
   reactimate $ print . map ord . unpack <$> eText
 
   -- REAL LIFE
-  reactimate $ (buffAppend' pty) <$> (alphaNum kbdEvents `union` clear kbdEvents)
-  reactimate $ (buffAppendBS pty) <$> eText
+  reactimate $ buffAppend' pty <$> (alphaNum kbdEvents `union` clear kbdEvents)
+  reactimate $ buffAppendBS pty <$> eText
   reactimate $ writeConsole pty <$> fullLines
-  -- reactimate $ (scrollTo pty)  <$> scroll
+  reactimate $ scrollTo pty <$> (endMark pty <$ eChanged )
 
 
 
