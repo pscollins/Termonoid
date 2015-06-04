@@ -78,6 +78,7 @@ library
                , gtk
                , transformers
                , unix
+               , glib
   exposed-modules: Termonoid, TermNetwork, Terminal
   default-language: Haskell2010
   ghc-options: -Wall -fno-warn-orphans

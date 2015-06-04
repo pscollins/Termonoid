@@ -1,4 +1,4 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns, ScopedTypeVariables #-}
 module TermNetwork where
 
 import Graphics.UI.Gtk
@@ -8,6 +8,7 @@ import Control.Event.Handler
 import System.Posix.Pty
 import Control.Monad
 import Data.ByteString.Char8 (pack, ByteString, unpack)
+import System.Glib.UTFString (stringToGlib)
 
 import Terminal
 
@@ -29,7 +30,6 @@ watch textIn pty = forever $ do
   threadWaitReadPty pty
   return ()
 
-
 lineToSend :: KbdEvents t -> Event t String
 lineToSend KbdEvents {alphaNum, clear} =
   accumE "" $ (cons <$> alphaNum) `union` (reset <$> clear)
@@ -37,11 +37,17 @@ lineToSend KbdEvents {alphaNum, clear} =
         reset _ = const ""
 
 
+-- We'd like to make this more general, but oh well
+eventPairs :: Event t String -> Event t (String, String)
+eventPairs ev = accumE ("", "") (adv <$> ev)
+  where adv new (older, old) = (old, new)
+
 -- This is too restrictive, but let's use it for now
+-- Be aware that control keys tend to not actually have char representations
 mkKbdEvents :: Event t KeyVal -> KbdEvents t
-mkKbdEvents eText = KbdEvents { alphaNum = filterE (`elem` ['A'..'z']) eChars
-                              , clear = () <$ filterE (== '\n') eChars }
-  where eChars = filterJust $ keyToChar <$> eText
+mkKbdEvents eText = KbdEvents { alphaNum = filterJust $ keyToChar <$> eText
+                              , clear = () <$ filterE (== returnVal) eText }
+  where returnVal = keyFromName $ stringToGlib "Return"
 
 setupNetwork :: EventSource KeyVal -> EventSource PtyOut -> Pty
                 -> TextBuffer -> IO EventNetwork
@@ -56,7 +62,9 @@ setupNetwork keyPress textIn pty buf = compile $ do
 
   -- DEBUG
   reactimate $ print <$> ePressed
+  reactimate $ print <$> keyName <$> ePressed
   reactimate $ print <$> doSend
+  reactimate $ print <$> eventPairs doSend
   -- let eCharable = filterJust $ keyToChar <$> ePressed
   --     ePrintableChars = filterE (`elem` ['A'..'z']) eCharable
   --     eEnter = filterE (== '\n') eCharable
