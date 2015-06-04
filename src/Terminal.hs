@@ -50,6 +50,7 @@ data LivePty = LivePty { livePty :: Pty
 mkLivePty :: Pty -> TextView -> IO LivePty
 mkLivePty pty tv = do
   buf <- textViewGetBuffer tv
+
   return LivePty { livePty = pty
                  , textView = tv
                  , textBuf = buf }
@@ -68,3 +69,6 @@ buffAppendBS pty = postGUIAsync . textBufferInsertByteStringAtCursor (textBuf pt
 
 writeConsole :: LivePty -> String -> IO ()
 writeConsole pty = writePty (livePty pty) . pack
+
+scrollTo :: LivePty -> TextMark -> IO ()
+scrollTo pty = textViewScrollMarkOnscreen (textView pty)

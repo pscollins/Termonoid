@@ -10,6 +10,7 @@ import Control.Monad
 import Data.ByteString.Char8 (pack, ByteString, unpack)
 import System.Glib.UTFString (stringToGlib)
 import Data.Char (ord)
+import Control.Concurrent
 
 import Terminal
 
@@ -57,15 +58,32 @@ mkKbdEvents eText = KbdEvents { alphaNum = filterJust $ keyToChar <$> eText
                               , clear = '\n' <$ filterE (== returnVal) eText }
   where returnVal = keyFromName $ stringToGlib "Return"
 
-setupNetwork :: EventSource KeyVal -> EventSource ByteString -> LivePty
-                -> IO EventNetwork
-setupNetwork keyPress textIn pty = compile $ do
+
+mkScrollEvent :: LivePty -> EventSource () -> Event t () -> IO (Event t TextMark)
+mkScrollEvent (LivePty {livePty, textView, textBuf}) bufChanged eChanged = do
+    endIter <- textBufferGetEndIter textBuf
+    endMark <- textBufferCreateMark textBuf Nothing endIter False
+
+    textBuf `on` bufferChanged $ do
+      liftIO $ fire bufChanged ()
+
+    return (endMark <$ eChanged)
+
+
+setupNetwork :: EventSource KeyVal -> EventSource ByteString ->
+                EventSource () -> LivePty -> IO EventNetwork
+setupNetwork keyPress textIn bufChanged pty = compile $ do
   ePressed <- fromAddHandler $ addHandler keyPress
   eText <- fromAddHandler $ addHandler textIn
+  eChanged <- fromAddHandler $ addHandler bufChanged
+
+  -- scroll <- mkScrollEvent pty bufChanged eChanged
 
   let kbdEvents = mkKbdEvents ePressed
       doSend = lineToSend kbdEvents
       fullLines = fixUp  <$> (filterJust $ rightEmpty <$> eventPairs doSend)
+
+
 
 
   -- let fromPtyOut :: PtyOut -> String = either (\_ -> "") show
@@ -84,6 +102,7 @@ setupNetwork keyPress textIn pty = compile $ do
   reactimate $ (buffAppend' pty) <$> (alphaNum kbdEvents `union` clear kbdEvents)
   reactimate $ (buffAppendBS pty) <$> eText
   reactimate $ writeConsole pty <$> fullLines
+  -- reactimate $ (scrollTo pty)  <$> scroll
 
 
 

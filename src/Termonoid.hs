@@ -33,19 +33,21 @@ mainAxn = do
   scrolledWin <- scrolledWindowNew Nothing Nothing
   txt <- textViewNew
   textViewSetWrapMode txt WrapWord
-  livePty <- mkLivePty pty txt
+  sessionPty <- mkLivePty pty txt
 
   containerAdd win scrolledWin
   containerAdd scrolledWin txt
 
+  scrolledWindowSetPolicy scrolledWin PolicyNever PolicyAutomatic
+
   widgetShowAll win
 
-  (keyPress, textIn) <- (,) <$> newAddHandler <*> newAddHandler
-  network <- setupNetwork keyPress textIn livePty
+  (keyPress, textIn, bufChange) <-
+    (,,) <$> newAddHandler <*> newAddHandler <*> newAddHandler
+  network <- setupNetwork keyPress textIn bufChange sessionPty
   actuate network
 
-  forkIO $ watch textIn pty
-
+  forkIO $ watch textIn (livePty sessionPty)
 
   win `on` keyPressEvent $ do
     k <- eventKeyVal
