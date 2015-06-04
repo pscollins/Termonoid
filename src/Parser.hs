@@ -22,7 +22,7 @@ primBody (PrimText s) = s
 primBody (PrimControlSeq s) = s
 
 processPrim :: PrimDisplayExpr -> DisplayExpr
-processPrim pExp = fromMaybe (Text $ primBody pExp) $ processPrim' pExp
+processPrim pExp = fromMaybe (Text $ "") $ processPrim' pExp
 
 
 processPrim' :: PrimDisplayExpr -> Maybe DisplayExpr

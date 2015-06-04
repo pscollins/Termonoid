@@ -8,7 +8,6 @@ import System.Posix.Pty
 import Control.Monad
 import Data.ByteString.Char8 (ByteString, unpack)
 import System.Glib.UTFString (stringToGlib)
-import Data.Char (ord)
 
 import Terminal
 import Parser
@@ -38,7 +37,7 @@ lineToSend KbdEvents {alphaNum, clear, del} =
                (back <$> del))
   where cons = (:)
         reset _ = const ""
-        back _ (s:ss) = ss
+        back _ (_:ss) = ss
         back _ [] = []
 
 

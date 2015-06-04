@@ -7,9 +7,9 @@ import System.Process
 import Control.Applicative
 import Data.ByteString.Char8 (pack, ByteString)
 import System.Glib.UTFString
-import Control.Monad
 import Data.Maybe (catMaybes)
 import Data.Char (toLower)
+import Debug.Trace
 
 import ParserTypes
 
@@ -41,8 +41,13 @@ data LivePty = LivePty { livePty :: Pty
                        , endMark :: TextMark
                        }
 
+-- doSync :: IO a -> IO a
+-- doSync = postGUISync
+-- doAsync :: IO () -> IO ()
+-- doAsync = postGUIAsync
+
 doSync :: IO a -> IO a
-doSync = postGUISync
+doSync = id
 doAsync :: IO () -> IO ()
 doAsync = postGUIAsync
 
@@ -50,7 +55,7 @@ doAsync = postGUIAsync
 -- i.e. follows insertions. Left gravity = true means does not follow
 -- insertions.
 mkEndMark' :: TextBuffer -> TextView -> Bool -> IO TextMark
-mkEndMark' buf tv gravity = doSync $ do
+mkEndMark' buf _ gravity = doSync $ do
   endIter <- textBufferGetEndIter buf
   textBufferCreateMark buf Nothing endIter gravity
 
@@ -113,7 +118,7 @@ colorTag attrs (Set (col, pos)) = set attrs [ (getter pos) := newColor ]
   where getter :: ColorPos -> WriteAttr TextTag String
         getter Foreground = textTagForeground
         getter Background = textTagBackground
-        newColor = map toLower $ show col
+        newColor = trace (map toLower $ show col)  (map toLower $ show col)
 
 colorTag' :: LivePty -> ColorCmd -> IO (TextTag)
 colorTag' pty cmd = doSync $ do
@@ -129,6 +134,7 @@ dropMarks pty = doSync . mapM dropMark
   where dropMark :: DisplayExpr -> IO (Maybe ([ColorCmd], TextMark))
         dropMark (Text s) = buffAppend pty s >> return Nothing
         dropMark (SGR cmds) = Just <$> (mkEndMark pty True >>= return . (,) cmds)
+        dropMark (CSI _ _) = return Nothing
 
 -- | Second, we replace our marks with tags to format the document.
 -- Colors are the only kind of formatting that needs tags.
