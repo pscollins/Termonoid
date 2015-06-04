@@ -30,11 +30,13 @@ mainAxn = do
   initGUI >>= print
 
   win <- windowNew
+  scrolledWin <- scrolledWindowNew Nothing Nothing
   txt <- textViewNew
   textViewSetWrapMode txt WrapWord
   livePty <- mkLivePty pty txt
 
-  containerAdd win txt
+  containerAdd win scrolledWin
+  containerAdd scrolledWin txt
 
   widgetShowAll win
 
