@@ -48,7 +48,7 @@ cabal-version:       >=1.10
 
 executable Termonoid
   -- .hs or .lhs file containing the Main module.
-  main-is:             Main.hs
+  main-is:             src/Main.hs
 
   -- Modules included in this executable, other than Main.
   -- other-modules:
@@ -68,7 +68,8 @@ executable Termonoid
   default-language:    Haskell2010
 
 library
-  hs-source-dirs: src
+  hs-source-dirs: src/
+                , src/Termonoid
   build-depends: base
                , posix-pty
                , process
@@ -90,7 +91,7 @@ test-suite test-term
   main-is: TestTerm.hs
   type:  exitcode-stdio-1.0
   build-depends: base
-               , Termonoid.Termonoid
+               , Termonoid
                , hspec
   default-language: Haskell2010
   ghc-options: -Wall
