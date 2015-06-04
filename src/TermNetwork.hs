@@ -22,17 +22,24 @@ fire :: EventSource a -> a -> IO ()
 fire = snd
 
 data KbdEvents t = KbdEvents { alphaNum :: Event t Char
-                             , clear :: Event t Char }
+                             , clear :: Event t Char
+                             , del :: Event t Char }
 
 watch :: EventSource ByteString -> Pty -> IO ()
 watch textIn pty = forever $
   readPty pty >>= fire textIn >> threadWaitReadPty pty
 
 lineToSend :: KbdEvents t -> Event t String
-lineToSend KbdEvents {alphaNum, clear} =
-  accumE "" $ (cons <$> alphaNum) `union` (reset <$> clear)
+lineToSend KbdEvents {alphaNum, clear, del} =
+  accumE "" $ ((cons <$> alphaNum)
+               `union`
+               (reset <$> clear)
+               `union`
+               (back <$> del))
   where cons = (:)
         reset _ = const ""
+        back _ (s:ss) = ss
+        back _ [] = []
 
 
 -- We'd like to make this more general, but oh well
@@ -52,8 +59,10 @@ fixUp  = reverse . ('\n':)
 -- Be aware that control keys tend to not actually have char representations
 mkKbdEvents :: Event t KeyVal -> KbdEvents t
 mkKbdEvents eText = KbdEvents { alphaNum = filterJust $ keyToChar <$> eText
-                              , clear = '\n' <$ filterE (== returnVal) eText }
+                              , clear = '\n' <$ filterE (== returnVal) eText
+                              , del = '^' <$ filterE (== delVal) eText }
   where returnVal = keyFromName $ stringToGlib "Return"
+        delVal = keyFromName $ stringToGlib "BackSpace"
 
 
 -- mkScrollEvent :: LivePty -> EventSource () -> Event t () -> IO (Event t TextMark)
@@ -91,11 +100,14 @@ setupNetwork keyPress textIn bufChanged pty = compile $ do
   reactimate $ print <$> eText
   -- reactimate $ print . map ord . unpack <$> eText
 
+  let withGui = (postGUIAsync `seq`)
+
   -- REAL LIFE
-  reactimate $ buffAppend' pty <$> (alphaNum kbdEvents `union` clear kbdEvents)
-  reactimate $ writeParsed pty . parse . unpack <$> eText
-  reactimate $ writeConsole pty <$> fullLines
-  reactimate $ scrollTo pty <$> (endMark pty <$ eChanged)
+  reactimate $ withGui . buffAppend' pty <$> (alphaNum kbdEvents `union` clear kbdEvents)
+  reactimate $ withGui . (const $ killOne pty) <$> del kbdEvents
+  reactimate $ withGui . writeParsed pty . parse . unpack <$> eText
+  reactimate $ withGui . writeConsole pty <$> fullLines
+  reactimate $ withGui . scrollTo pty <$> (endMark pty <$ eChanged)
 
 
 

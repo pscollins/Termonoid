@@ -70,6 +70,12 @@ tagToEnd pty start tag = endIter >>= textBufferApplyTag buf tag start
   where buf = textBuf pty
         endIter = textBufferGetEndIter buf
 
+
+killOne :: LivePty -> IO ()
+killOne pty = do
+  iAm <- textBufferGetInsert (textBuf pty) >>= (mkIter pty)
+  textBufferBackspace (textBuf pty) iAm True True >> return ()
+
 buffAppend :: LivePty -> String -> IO ()
 buffAppend pty = textBufferInsertAtCursor (textBuf pty) . stringToGlib
 
@@ -80,7 +86,7 @@ buffAppendBS :: LivePty -> ByteString -> IO ()
 buffAppendBS pty = textBufferInsertByteStringAtCursor (textBuf pty)
 
 writeConsole :: LivePty -> String -> IO ()
-writeConsole pty = writePty (livePty pty) . pack
+writeConsole pty = postGUIAsync `seq` writePty (livePty pty) . pack
 
 scrollTo :: LivePty -> TextMark -> IO ()
 scrollTo pty = textViewScrollMarkOnscreen (textView pty)
@@ -88,6 +94,12 @@ scrollTo pty = textViewScrollMarkOnscreen (textView pty)
 emptyGlib :: DefaultGlibString
 emptyGlib = stringToGlib ""
 
+newTextTag :: LivePty -> IO TextTag
+newTextTag pty = do
+  table <- textBufferGetTagTable (textBuf pty)
+  tag <- textTagNew Nothing
+  textTagTableAdd table tag
+  return tag
 
 colorTag :: TextTag -> ColorCmd -> IO ()
 colorTag attrs Reset = set attrs [ textTagBackground := emptyGlib
@@ -98,9 +110,9 @@ colorTag attrs (Set (col, pos)) = set attrs [ (getter pos) := newColor ]
         getter Background = textTagBackground
         newColor = map toLower $ show col
 
-colorTag' :: ColorCmd -> IO (TextTag)
-colorTag' cmd = do
-  tag <- textTagNew Nothing
+colorTag' :: LivePty -> ColorCmd -> IO (TextTag)
+colorTag' pty cmd = do
+  tag <- newTextTag pty
   colorTag tag cmd
   return tag
 
@@ -115,9 +127,10 @@ dropMarks pty = mapM dropMark
 
 -- | Second, we replace our marks with tags to format the document.
 -- Colors are the only kind of formatting that needs tags.
-dropTags :: [Maybe ([ColorCmd], TextMark)] -> IO [([TextTag], TextMark)]
-dropTags = mapM dropTag . catMaybes
-  where dropTag (cmds, mark) = mapM colorTag' cmds >>= return . (, mark)
+dropTags :: LivePty -> [Maybe ([ColorCmd], TextMark)] -> IO [([TextTag], TextMark)]
+dropTags pty = mapM dropTag . catMaybes
+  where dropTag (cmds, mark) = mapM colorTag'' cmds >>= return . (, mark)
+        colorTag'' = colorTag' pty
 
 applyTags :: LivePty -> [([TextTag], TextMark)] -> IO ()
 applyTags pty = mapM_ doTags
@@ -127,7 +140,8 @@ applyTags pty = mapM_ doTags
 
 
 writeParsed :: LivePty -> [DisplayExpr] -> IO ()
-writeParsed pty exprs = dropMarks' exprs >>= dropTags >>= applyTags'
+writeParsed pty exprs = dropMarks' exprs >>= dropTags' >>= applyTags'
   where dropMarks' = dropMarks pty
         applyTags' = applyTags pty
+        dropTags' = dropTags pty
 -- writeParsed pty (Text s) = buffAppend pty s
