@@ -41,22 +41,27 @@ data LivePty = LivePty { livePty :: Pty
                        , endMark :: TextMark
                        }
 
+doSync :: IO a -> IO a
+doSync = postGUISync
+doAsync :: IO () -> IO ()
+doAsync = postGUIAsync
+
 -- | Note that "left gravity" = false means "falls to the right,"
 -- i.e. follows insertions. Left gravity = true means does not follow
 -- insertions.
 mkEndMark' :: TextBuffer -> TextView -> Bool -> IO TextMark
-mkEndMark' buf tv gravity = do
+mkEndMark' buf tv gravity = doSync $ do
   endIter <- textBufferGetEndIter buf
   textBufferCreateMark buf Nothing endIter gravity
 
 mkEndMark :: LivePty -> Bool -> IO TextMark
-mkEndMark (LivePty _ tv tb _) = mkEndMark' tb tv
+mkEndMark (LivePty _ tv tb _) = doSync $ mkEndMark' tb tv
 
 mkIter :: LivePty -> TextMark -> IO TextIter
-mkIter pty = textBufferGetIterAtMark (textBuf pty)
+mkIter pty tm = doSync (textBufferGetIterAtMark (textBuf pty) tm)
 
 mkLivePty :: Pty -> TextView -> IO LivePty
-mkLivePty pty tv = do
+mkLivePty pty tv = doSync $ do
   buf <- textViewGetBuffer tv
   end <- mkEndMark' buf tv False
 
@@ -68,16 +73,16 @@ mkLivePty pty tv = do
 tagToEnd :: LivePty -> TextIter -> TextTag -> IO ()
 tagToEnd pty start tag = endIter >>= textBufferApplyTag buf tag start
   where buf = textBuf pty
-        endIter = textBufferGetEndIter buf
+        endIter = doSync $ textBufferGetEndIter buf
 
 
 killOne :: LivePty -> IO ()
-killOne pty = do
+killOne pty = doAsync $ do
   iAm <- textBufferGetInsert (textBuf pty) >>= (mkIter pty)
   textBufferBackspace (textBuf pty) iAm True True >> return ()
 
 buffAppend :: LivePty -> String -> IO ()
-buffAppend pty = textBufferInsertAtCursor (textBuf pty) . stringToGlib
+buffAppend pty s = doAsync $ textBufferInsertAtCursor (textBuf pty) . stringToGlib s
 
 buffAppend' :: LivePty -> Char -> IO ()
 buffAppend' pty = (buffAppend pty) . (:[])

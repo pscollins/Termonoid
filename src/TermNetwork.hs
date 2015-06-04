@@ -100,14 +100,14 @@ setupNetwork keyPress textIn bufChanged pty = compile $ do
   reactimate $ print <$> eText
   -- reactimate $ print . map ord . unpack <$> eText
 
-  let withGui = (postGUIAsync `seq`)
+
 
   -- REAL LIFE
-  reactimate $ withGui . buffAppend' pty <$> (alphaNum kbdEvents `union` clear kbdEvents)
-  reactimate $ withGui . (const $ killOne pty) <$> del kbdEvents
-  reactimate $ withGui . writeParsed pty . parse . unpack <$> eText
-  reactimate $ withGui . writeConsole pty <$> fullLines
-  reactimate $ withGui . scrollTo pty <$> (endMark pty <$ eChanged)
+  reactimate $ doSync . buffAppend' pty <$> (alphaNum kbdEvents `union` clear kbdEvents)
+  reactimate $ doSync . (const $ killOne pty) <$> del kbdEvents
+  reactimate $ doSync . writeParsed pty . parse . unpack <$> eText
+  reactimate $ doSync . writeConsole pty <$> fullLines
+  reactimate $ doSync . scrollTo pty <$> (endMark pty <$ eChanged)
 
 
 
