@@ -98,3 +98,15 @@ test-suite test-term
                , hspec
   default-language: Haskell2010
   ghc-options: -Wall
+
+
+test-suite test-integration
+  hs-source-dirs: test
+  main-is: Integration.hs
+  type: exitcode-stdio-1.0
+  build-depends: base
+               , Termonoid
+               , hspec
+               , gtk
+  default-language: Haskell2010
+  ghc-options: -Wall

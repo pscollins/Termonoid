@@ -8,6 +8,7 @@ import System.Posix.Pty
 import Control.Monad
 import Data.ByteString.Char8 (ByteString, unpack)
 import System.Glib.UTFString (stringToGlib)
+import Control.Concurrent.Chan
 
 import Terminal
 import Parser
@@ -27,6 +28,11 @@ data KbdEvents t = KbdEvents { alphaNum :: Event t Char
 watch :: EventSource ByteString -> Pty -> IO ()
 watch textIn pty = forever $
   readPty pty >>= fire textIn >> threadWaitReadPty pty
+
+
+watchKeys :: EventSource KeyVal -> Chan KeyVal -> IO ()
+watchKeys keyPress chan = forever $
+  readChan chan >>= fire keyPress >> putStrLn "did a read"
 
 lineToSend :: KbdEvents t -> Event t String
 lineToSend KbdEvents {alphaNum, clear, del} =
@@ -64,14 +70,6 @@ mkKbdEvents eText = KbdEvents { alphaNum = filterJust $ keyToChar <$> eText
         delVal = keyFromName $ stringToGlib "BackSpace"
 
 
--- mkScrollEvent :: LivePty -> EventSource () -> Event t () -> IO (Event t TextMark)
--- mkScrollEvent (LivePty {livePty, textView, textBuf}) bufChanged eChanged = do
-
-
-
-
---     return (endMark <$ eChanged)
-
 
 setupNetwork :: EventSource KeyVal -> EventSource ByteString ->
                 EventSource () -> LivePty -> IO EventNetwork
@@ -100,13 +98,18 @@ setupNetwork keyPress textIn bufChanged pty = compile $ do
   -- reactimate $ print . map ord . unpack <$> eText
 
 
+  let reactimateSafe :: Frameworks t => Event t (IO ()) -> Moment t ()
+      reactimateSafe  = reactimate . fmap postGUIAsync
 
   -- REAL LIFE
-  reactimate $ buffAppend' pty <$> (alphaNum kbdEvents `union` clear kbdEvents)
-  reactimate $ (const $ killOne pty) <$> del kbdEvents
-  reactimate $ writeParsed pty . parse . unpack <$> eText
-  reactimate $ writeConsole pty <$> fullLines
-  reactimate $ scrollTo pty <$> (endMark pty <$ eChanged)
+  reactimateSafe $  buffAppend' pty <$>
+   (alphaNum kbdEvents `union` clear kbdEvents)
+  reactimateSafe $ (const $ killOne pty) <$> del kbdEvents
+  reactimateSafe $ writeParsed pty . parse . unpack <$> eText
+  reactimateSafe $ writeConsole pty <$> fullLines
+  reactimateSafe $ scrollTo pty <$> (endMark pty <$ eChanged)
+  reactimateSafe $ const (postGUIAsync mainQuit) <$>
+    (filterE (== 'Q') $ alphaNum kbdEvents)
 
 
 

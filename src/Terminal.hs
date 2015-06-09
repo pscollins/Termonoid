@@ -47,28 +47,35 @@ data LivePty = LivePty { livePty :: Pty
 -- doAsync = postGUIAsync
 
 doSync :: IO a -> IO a
-doSync = id
+doSync = trace "DOING SYNC" id
 doAsync :: IO () -> IO ()
-doAsync = postGUIAsync
+doAsync = trace "DOING ASYNC" id
+
+
+mkEndMarkUnsafe :: TextBuffer -> Bool -> IO TextMark
+mkEndMarkUnsafe buf gravity = do
+  endIter <- textBufferGetEndIter buf
+  textBufferCreateMark buf Nothing endIter gravity
+
 
 -- | Note that "left gravity" = false means "falls to the right,"
 -- i.e. follows insertions. Left gravity = true means does not follow
 -- insertions.
-mkEndMark' :: TextBuffer -> TextView -> Bool -> IO TextMark
-mkEndMark' buf _ gravity = doSync $ do
-  endIter <- textBufferGetEndIter buf
-  textBufferCreateMark buf Nothing endIter gravity
+mkEndMark' :: TextBuffer -> Bool -> IO TextMark
+mkEndMark'  = (doSync .) . mkEndMarkUnsafe
 
 mkEndMark :: LivePty -> Bool -> IO TextMark
-mkEndMark (LivePty _ tv tb _) = doSync . mkEndMark' tb tv
+mkEndMark (LivePty _ _ tb _) = mkEndMark' tb
 
 mkIter :: LivePty -> TextMark -> IO TextIter
 mkIter pty = doSync . textBufferGetIterAtMark (textBuf pty)
 
+-- Note that we WOULD have to do this with a post* function, but we
+-- only call it once inside of mainAxn
 mkLivePty :: Pty -> TextView -> IO LivePty
-mkLivePty pty tv = doSync $ do
+mkLivePty pty tv = do
   buf <- textViewGetBuffer tv
-  end <- mkEndMark' buf tv False
+  end <- mkEndMarkUnsafe buf False
 
   return LivePty { livePty = pty
                  , textView = tv

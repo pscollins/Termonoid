@@ -4,7 +4,7 @@ module Termonoid where
 import Graphics.UI.Gtk
 
 import Control.Monad.IO.Class
-
+import Control.Monad
 import Reactive.Banana
 import Reactive.Banana.Frameworks
 import Control.Concurrent
@@ -28,11 +28,18 @@ mainAxn = do
 
   initGUI >>= print
 
+  putStrLn "about to set up stuff"
+
   win <- windowNew
   scrolledWin <- scrolledWindowNew Nothing Nothing
   txt <- textViewNew
   textViewSetWrapMode txt WrapWord
+
+  putStrLn "about to make pty"
+
   sessionPty <- mkLivePty pty txt
+
+  putStrLn "made the UI objects"
 
   containerAdd win scrolledWin
   containerAdd scrolledWin txt
@@ -41,18 +48,25 @@ mainAxn = do
 
   widgetShowAll win
 
+  putStrLn "about to set up network"
+
   (keyPress, textIn, bufChange) <-
     (,,) <$> newAddHandler <*> newAddHandler <*> newAddHandler
   network <- setupNetwork keyPress textIn bufChange sessionPty
   actuate network
 
+  keyChan <- newChan
+
   _ <- forkIO $ watch textIn (livePty sessionPty)
+  _ <- forkIO $ watchKeys keyPress keyChan
 
   _ <- win `on` keyPressEvent $
-       eventKeyVal >>= liftIO . fire keyPress >> return True
+       eventKeyVal >>= liftIO . writeChan keyChan >> return True
 
 
   _ <- (textBuf sessionPty) `on` bufferChanged $
        liftIO $ fire bufChange ()
+
+  putStrLn "all setup"
 
   mainGUI
