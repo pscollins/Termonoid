@@ -41,41 +41,26 @@ data LivePty = LivePty { livePty :: Pty
                        , endMark :: TextMark
                        }
 
--- doSync :: IO a -> IO a
--- doSync = postGUISync
--- doAsync :: IO () -> IO ()
--- doAsync = postGUIAsync
-
-doSync :: IO a -> IO a
-doSync = trace "DOING SYNC" id
-doAsync :: IO () -> IO ()
-doAsync = trace "DOING ASYNC" id
-
-
-mkEndMarkUnsafe :: TextBuffer -> Bool -> IO TextMark
-mkEndMarkUnsafe buf gravity = do
-  endIter <- textBufferGetEndIter buf
-  textBufferCreateMark buf Nothing endIter gravity
-
-
 -- | Note that "left gravity" = false means "falls to the right,"
 -- i.e. follows insertions. Left gravity = true means does not follow
 -- insertions.
 mkEndMark' :: TextBuffer -> Bool -> IO TextMark
-mkEndMark'  = (doSync .) . mkEndMarkUnsafe
+mkEndMark'  buf gravity = do
+  endIter <- textBufferGetEndIter buf
+  textBufferCreateMark buf Nothing endIter gravity
 
 mkEndMark :: LivePty -> Bool -> IO TextMark
 mkEndMark (LivePty _ _ tb _) = mkEndMark' tb
 
 mkIter :: LivePty -> TextMark -> IO TextIter
-mkIter pty = doSync . textBufferGetIterAtMark (textBuf pty)
+mkIter pty = textBufferGetIterAtMark (textBuf pty)
 
 -- Note that we WOULD have to do this with a post* function, but we
 -- only call it once inside of mainAxn
 mkLivePty :: Pty -> TextView -> IO LivePty
 mkLivePty pty tv = do
   buf <- textViewGetBuffer tv
-  end <- mkEndMarkUnsafe buf False
+  end <- mkEndMark' buf False
 
   return LivePty { livePty = pty
                  , textView = tv
@@ -89,30 +74,30 @@ tagToEnd pty start tag = endIter >>= textBufferApplyTag buf tag start
 
 
 killOne :: LivePty -> IO ()
-killOne pty = doAsync $ do
+killOne pty = do
   iAm <- textBufferGetInsert (textBuf pty) >>= (mkIter pty)
   textBufferBackspace (textBuf pty) iAm True True >> return ()
 
 buffAppend :: LivePty -> String -> IO ()
-buffAppend pty = doAsync . textBufferInsertAtCursor (textBuf pty) . stringToGlib
+buffAppend pty = textBufferInsertAtCursor (textBuf pty) . stringToGlib
 
 buffAppend' :: LivePty -> Char -> IO ()
-buffAppend' pty = doAsync . (buffAppend pty) . (:[])
+buffAppend' pty = (buffAppend pty) . (:[])
 
 buffAppendBS :: LivePty -> ByteString -> IO ()
-buffAppendBS pty = doAsync. textBufferInsertByteStringAtCursor (textBuf pty)
+buffAppendBS pty = textBufferInsertByteStringAtCursor (textBuf pty)
 
 writeConsole :: LivePty -> String -> IO ()
-writeConsole pty = doAsync . writePty (livePty pty) . pack
+writeConsole pty = writePty (livePty pty) . pack
 
 scrollTo :: LivePty -> TextMark -> IO ()
-scrollTo pty = doAsync . textViewScrollMarkOnscreen (textView pty)
+scrollTo pty = textViewScrollMarkOnscreen (textView pty)
 
 emptyGlib :: DefaultGlibString
 emptyGlib = stringToGlib ""
 
 newTextTag :: LivePty -> IO TextTag
-newTextTag pty = doSync $ do
+newTextTag pty = do
   table <- textBufferGetTagTable (textBuf pty)
   tag <- textTagNew Nothing
   textTagTableAdd table tag
@@ -128,7 +113,7 @@ colorTag attrs (Set (col, pos)) = set attrs [ (getter pos) := newColor ]
         newColor = trace (map toLower $ show col)  (map toLower $ show col)
 
 colorTag' :: LivePty -> ColorCmd -> IO (TextTag)
-colorTag' pty cmd = doSync $ do
+colorTag' pty cmd = do
   tag <- newTextTag pty
   colorTag tag cmd
   return tag
@@ -137,7 +122,7 @@ colorTag' pty cmd = doSync $ do
 -- the body of text we want to insert and drop marks every time we
 -- see a formatting code that we need to take care of.
 dropMarks :: LivePty -> [DisplayExpr] -> IO [Maybe ([ColorCmd], TextMark)]
-dropMarks pty = doSync . mapM dropMark
+dropMarks pty = mapM dropMark
   where dropMark :: DisplayExpr -> IO (Maybe ([ColorCmd], TextMark))
         dropMark (Text s) = buffAppend pty s >> return Nothing
         dropMark (SGR cmds) = Just <$> (mkEndMark pty True >>= return . (,) cmds)
@@ -146,12 +131,12 @@ dropMarks pty = doSync . mapM dropMark
 -- | Second, we replace our marks with tags to format the document.
 -- Colors are the only kind of formatting that needs tags.
 dropTags :: LivePty -> [Maybe ([ColorCmd], TextMark)] -> IO [([TextTag], TextMark)]
-dropTags pty = doSync . mapM dropTag . catMaybes
+dropTags pty = mapM dropTag . catMaybes
   where dropTag (cmds, mark) = mapM colorTag'' cmds >>= return . (, mark)
         colorTag'' = colorTag' pty
 
 applyTags :: LivePty -> [([TextTag], TextMark)] -> IO ()
-applyTags pty = doAsync . mapM_ doTags
+applyTags pty =  mapM_ doTags
   where doTags (tags, mark) = do
           start <- mkIter pty mark
           mapM_ (tagToEnd pty start) tags
