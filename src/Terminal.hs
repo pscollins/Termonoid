@@ -12,6 +12,7 @@ import Data.Char (toLower)
 import Debug.Trace
 
 import ParserTypes
+import Parser
 
 spawnWithEnv :: FilePath -> [String] ->
                 (Int, Int) -> IO (Pty, ProcessHandle)
@@ -103,14 +104,19 @@ newTextTag pty = do
   textTagTableAdd table tag
   return tag
 
+-- FIXME: Read these in from something
 colorTag :: TextTag -> ColorCmd -> IO ()
-colorTag attrs Reset = set attrs [ textTagBackground := emptyGlib
-                                 , textTagForeground := emptyGlib ]
+colorTag attrs Reset = set attrs [ textTagBackground := stringToGlib "white"
+                                 , textTagForeground := stringToGlib "black"
+                                 , textTagWeight := fromEnum WeightNormal
+                                 , textTagFamily := "Monospace" ]
+colorTag attrs Bold = set attrs [ textTagWeight := fromEnum WeightBold ]
 colorTag attrs (Set (col, pos)) = set attrs [ (getter pos) := newColor ]
   where getter :: ColorPos -> WriteAttr TextTag String
         getter Foreground = textTagForeground
         getter Background = textTagBackground
-        newColor = trace (map toLower $ show col)  (map toLower $ show col)
+        newColor = trace ("going to set " ++ (colorForGtk col))
+                   (colorForGtk col)
 
 colorTag' :: LivePty -> ColorCmd -> IO (TextTag)
 colorTag' pty cmd = do

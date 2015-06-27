@@ -95,6 +95,7 @@ setupNetwork keyPress textIn bufChanged pty = compile $ do
   reactimate $ print <$> eventPairs doSend
   reactimate $ print <$> fullLines
   reactimate $ print <$> eText
+  reactimate $ print . parse . unpack <$> eText
   -- reactimate $ print . map ord . unpack <$> eText
 
 

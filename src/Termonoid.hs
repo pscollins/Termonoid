@@ -13,6 +13,8 @@ import System.Posix.Pty
 import TermNetwork
 import Terminal
 
+-- Note: the default prompt is weird. See https://gist.github.com/marioBonales/1637696
+-- It looks like we need a special parser for PS1?
 
 mainAxn :: IO ()
 mainAxn = do
